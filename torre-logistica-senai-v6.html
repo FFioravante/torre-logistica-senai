@@ -1,0 +1,934 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Torre de Controle Logística 4.0 — SENAI-SP Jaú</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:ital,wght@0,600;0,700;1,800;1,900&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0C0C11; --panel:#15151D; --panel2:#111119; --line:#26262f;
+    --red:#E8092E; --red2:#FF2447; --amber:#FFB23E; --green:#2EDB8A;
+    --text:#F2F3F7; --muted:#8A8FA3; --steel:#B9C0D4;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    background:var(--bg); color:var(--text);
+    font-family:'Inter',sans-serif; overflow:hidden;
+    background-image:
+      radial-gradient(ellipse at 50% -25%, rgba(232,9,46,.10), transparent 55%),
+      linear-gradient(rgba(38,38,47,.32) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(38,38,47,.32) 1px, transparent 1px);
+    background-size:100% 100%, 52px 52px, 52px 52px;
+  }
+  .app{display:flex;flex-direction:column;height:100vh;padding:14px 18px;gap:12px}
+
+  /* ===== HEADER ===== */
+  header{display:flex;align-items:center;justify-content:space-between}
+  .brand{display:flex;align-items:center;gap:16px}
+  .brand img{height:44px;border-radius:6px}
+  .speedlines{display:flex;flex-direction:column;gap:5px}
+  .speedlines i{display:block;height:3px;background:var(--red);border-radius:2px;animation:speed 2.2s ease-in-out infinite}
+  .speedlines i:nth-child(1){width:26px}
+  .speedlines i:nth-child(2){width:38px;animation-delay:.15s}
+  .speedlines i:nth-child(3){width:20px;animation-delay:.3s}
+  @keyframes speed{50%{transform:translateX(-6px);opacity:.55}}
+  .brand h1{font-family:'Archivo';font-style:italic;font-weight:900;font-size:22px;letter-spacing:.3px;text-transform:uppercase}
+  .brand h1 em{color:var(--red2);font-style:italic}
+  .brand small{display:block;color:var(--muted);font-weight:500;font-size:11.5px;letter-spacing:2.6px;text-transform:uppercase;margin-top:3px;font-style:normal}
+  .head-right{display:flex;align-items:center;gap:22px}
+  .clock{font-family:'JetBrains Mono';font-size:26px;font-weight:600;letter-spacing:1px}
+  .status{display:flex;align-items:center;gap:8px;font-size:12px;letter-spacing:1.6px;text-transform:uppercase;color:var(--green);font-weight:600}
+  .dot{width:9px;height:9px;border-radius:50%;background:var(--green);box-shadow:0 0 10px var(--green);animation:pulse 2s infinite}
+  .status.warn{color:var(--amber)} .status.warn .dot{background:var(--amber);box-shadow:0 0 10px var(--amber)}
+  .status.crit{color:var(--red2)} .status.crit .dot{background:var(--red2);box-shadow:0 0 12px var(--red2)}
+  @keyframes pulse{50%{opacity:.4}}
+
+  /* ===== KPI STRIP ===== */
+  .kpis{display:grid;grid-template-columns:repeat(6,1fr);gap:12px}
+  .kpi{
+    background:linear-gradient(180deg,var(--panel),var(--panel2));
+    border:1px solid var(--line);border-radius:12px;
+    padding:12px 14px;position:relative;overflow:hidden;
+    display:flex;gap:12px;align-items:center;
+    transition:border-color .4s, box-shadow .4s;
+  }
+  .kpi::after{content:'';position:absolute;right:-14px;top:0;bottom:0;width:44px;
+    background:repeating-linear-gradient(90deg,transparent 0 6px,rgba(232,9,46,.08) 6px 9px);transform:skewX(-18deg)}
+  .kico{
+    width:42px;height:42px;border-radius:10px;flex-shrink:0;
+    background:rgba(232,9,46,.12);border:1px solid rgba(232,9,46,.3);
+    display:flex;align-items:center;justify-content:center;transition:all .4s;
+  }
+  .kico svg{width:22px;height:22px;stroke:var(--red2);fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+  .kpi .label{font-size:10px;letter-spacing:1.4px;text-transform:uppercase;color:var(--muted);font-weight:600}
+  .kpi .value{font-family:'JetBrains Mono';font-size:26px;font-weight:700;margin-top:2px;transition:color .4s;white-space:nowrap}
+  .kpi .value span{font-size:13px;color:var(--muted);font-weight:400}
+  .kpi .trend{font-family:'JetBrains Mono';font-size:10.5px;margin-top:1px;color:var(--green)}
+  .kpi.warn{border-color:rgba(255,178,62,.45)}
+  .kpi.warn .value{color:var(--amber)}
+  .kpi.warn .kico{background:rgba(255,178,62,.12);border-color:rgba(255,178,62,.4)}
+  .kpi.warn .kico svg{stroke:var(--amber)}
+  .kpi.crit{border-color:rgba(255,36,71,.55);box-shadow:0 0 24px rgba(232,9,46,.14);animation:kflash 1.6s infinite}
+  .kpi.crit .value{color:var(--red2)}
+  @keyframes kflash{50%{box-shadow:0 0 34px rgba(232,9,46,.3)}}
+  .kpi .trend.down{color:var(--red2)}
+
+  /* ===== MAIN ===== */
+  .main{display:grid;grid-template-columns:1fr 350px;gap:12px;flex:1;min-height:0}
+  .map-panel{background:var(--panel2);border:1px solid var(--line);border-radius:14px;position:relative;overflow:hidden}
+  .map-panel svg{width:100%;height:100%}
+  .map-title{position:absolute;top:14px;left:18px;font-family:'Archivo';font-style:italic;font-weight:800;font-size:13px;letter-spacing:2.5px;text-transform:uppercase;color:var(--steel)}
+  .map-title b{color:var(--red2)}
+  .map-badge{position:absolute;bottom:14px;left:18px;font-size:11px;color:var(--muted);letter-spacing:1px}
+  .brazil{fill:#17171f;stroke:#33333f;stroke-width:1.3}
+  .spstate{fill:rgba(232,9,46,.07);stroke:rgba(232,9,46,.55);stroke-width:1.2;opacity:0;transition:opacity .8s}
+  .spstate.on{opacity:1}
+  .route{fill:none;stroke:#5a5f75;stroke-width:1.5;stroke-dasharray:5 7;opacity:.75;animation:dash 1.2s linear infinite}
+  .route.blocked{stroke:var(--red2);opacity:1;stroke-width:2.6;animation:dash 2.6s linear infinite}
+  .route.alt{stroke:var(--green);opacity:1;stroke-width:2.2}
+  @keyframes dash{to{stroke-dashoffset:-12}}
+  .city-dot{fill:#cfd4e6}
+  .city-hub .city-dot{fill:#fff}
+  .city-ring{fill:none;stroke:var(--red2);opacity:.5;animation:ring 2.6s ease-out infinite}
+  @keyframes ring{0%{r:5;opacity:.7}100%{r:22;opacity:0}}
+  .city-label{font-family:'JetBrains Mono';font-size:11px;fill:#aab0c5;font-weight:600}
+  .city-hub .city-label{fill:#fff}
+  .truck{fill:#fff;filter:drop-shadow(0 0 4px rgba(232,9,46,.9))}
+  .truck.crit{fill:var(--red2);filter:drop-shadow(0 0 6px var(--red2))}
+  .incident{fill:var(--red2);filter:drop-shadow(0 0 9px var(--red2));animation:pulse 1s infinite}
+  /* camadas: visão nacional x visão SP (zoom) */
+  #natLayer{transition:opacity .9s}
+  #natLayer.dim{opacity:0}
+  #spLayer{opacity:0;pointer-events:none;transition:opacity .9s}
+  #spLayer.on{opacity:1}
+  .spcity{fill:#cfd4e6}
+  .spcity-label{font-family:'JetBrains Mono';font-size:3.4px;fill:#b6bccf;font-weight:600}
+  .sphub .spcity{fill:#fff}
+  .sphub .spcity-label{fill:#fff;font-size:4.6px}
+  .mobline{fill:none;stroke:var(--red2);stroke-width:.9;opacity:.75;stroke-dasharray:2 2.4;animation:dash 1.8s linear infinite}
+  .mobline.blocked{stroke-width:1.5;opacity:1;animation:dash 3.4s linear infinite}
+  .mobline.alt{stroke:var(--green);opacity:1;stroke-width:1.2}
+  .mobline.deploy{stroke:var(--amber);stroke-width:1.2;opacity:1}
+  .mobline.off{opacity:0}
+  .car2{transition:opacity .6s}
+  .car2 path{fill:var(--red2);animation:carGlow 3.4s ease-in-out infinite}
+  @keyframes carGlow{
+    0%,100%{filter:drop-shadow(0 0 1px rgba(232,9,46,.45)) brightness(.92)}
+    50%{filter:drop-shadow(0 0 4.5px rgba(255,36,71,.95)) drop-shadow(0 0 9px rgba(232,9,46,.5)) brightness(1.25)}
+  }
+  .car2.warn path{fill:var(--amber);animation:carGlowW 2.6s ease-in-out infinite}
+  @keyframes carGlowW{
+    0%,100%{filter:drop-shadow(0 0 1px rgba(255,178,62,.45)) brightness(.92)}
+    50%{filter:drop-shadow(0 0 5px rgba(255,178,62,.95)) brightness(1.3)}
+  }
+  .car2.hide{opacity:0}
+  .car2 text{font-family:'JetBrains Mono';font-size:3.8px;fill:#e8aab6;font-weight:600}
+  .factory2{fill:none;stroke:var(--amber);stroke-width:.8;animation:ring2 2s ease-out infinite}
+  @keyframes ring2{0%{r:2.5;opacity:.75}100%{r:9;opacity:0}}
+  .spincident{fill:var(--red2);filter:drop-shadow(0 0 4px var(--red2));animation:pulse 1s infinite}
+
+  /* ===== SIDE ===== */
+  .side{display:flex;flex-direction:column;gap:12px;min-height:0}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px 16px;display:flex;flex-direction:column;min-height:0}
+  .card h2{font-family:'Archivo';font-style:italic;font-weight:800;font-size:12px;letter-spacing:2.2px;text-transform:uppercase;color:var(--steel);margin-bottom:10px;flex-shrink:0;display:flex;align-items:center;gap:8px}
+  .card h2::before{content:'';width:14px;height:3px;background:var(--red);border-radius:2px}
+
+  .mob-card{flex-shrink:0;background:linear-gradient(135deg,rgba(232,9,46,.14),var(--panel) 55%)}
+  .mob-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .mob-item{background:rgba(0,0,0,.28);border:1px solid var(--line);border-radius:9px;padding:8px 10px}
+  .mob-item b{font-family:'JetBrains Mono';font-size:19px;font-weight:700;color:var(--red2);display:block}
+  .mob-item span{font-size:10px;letter-spacing:.8px;text-transform:uppercase;color:var(--muted);font-weight:600;line-height:1.3;display:block;margin-top:1px}
+  .mob-foot{font-size:10.5px;color:var(--steel);margin-top:9px;display:flex;align-items:center;gap:6px}
+  .mob-foot svg{width:13px;height:13px;stroke:var(--amber);fill:none;stroke-width:2;flex-shrink:0}
+
+  .alerts{flex-shrink:0}
+  .alert{display:flex;gap:10px;padding:9px 10px;border-radius:8px;margin-bottom:7px;font-size:12.5px;line-height:1.45;background:rgba(185,192,212,.06);border-left:3px solid var(--steel)}
+  .alert.warn{background:rgba(255,178,62,.08);border-left-color:var(--amber)}
+  .alert.crit{background:rgba(232,9,46,.1);border-left-color:var(--red2)}
+  .alert b{font-weight:600}
+  .alert .t{font-family:'JetBrains Mono';font-size:10.5px;color:var(--muted);flex-shrink:0;padding-top:1px}
+
+  .talk{flex:1;min-height:0}
+  .feed{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:9px;padding-right:4px;scrollbar-width:thin;scrollbar-color:var(--line) transparent}
+  .msg{font-size:13px;line-height:1.5;padding:9px 12px;border-radius:10px;max-width:95%}
+  .msg.user{background:rgba(232,9,46,.15);align-self:flex-end;border:1px solid rgba(232,9,46,.35)}
+  .msg.tower{background:var(--panel2);border:1px solid var(--line);align-self:flex-start}
+  .msg.tower b{color:var(--red2);font-family:'Archivo';font-style:italic;font-size:10.5px;letter-spacing:1.5px;text-transform:uppercase;display:block;margin-bottom:3px}
+
+  /* ===== COMMAND BAR ===== */
+  .cmd{display:flex;align-items:center;gap:10px;position:relative}
+  .hear{
+    position:absolute;bottom:calc(100% + 10px);left:0;
+    background:var(--panel);border:1px solid rgba(232,9,46,.5);border-radius:10px;
+    padding:8px 14px;font-size:13px;color:var(--steel);display:none;align-items:center;gap:9px;
+    box-shadow:0 6px 24px rgba(0,0,0,.5);max-width:70%;
+  }
+  .hear.show{display:flex}
+  .hear .hdot{width:8px;height:8px;border-radius:50%;background:var(--red2);animation:pulse 1.1s infinite;flex-shrink:0}
+  .hear b{color:#fff;font-weight:600}
+  .hear i{color:var(--muted)}
+  .mic{
+    width:58px;height:58px;border-radius:50%;border:2px solid var(--red2);flex-shrink:0;
+    background:radial-gradient(circle,rgba(232,9,46,.2),rgba(232,9,46,.05));
+    color:var(--red2);cursor:pointer;position:relative;transition:all .3s;
+    display:flex;align-items:center;justify-content:center;
+  }
+  .mic svg{width:24px;height:24px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+  .mic:hover{background:rgba(232,9,46,.3)}
+  .mic.on{border-color:#fff;color:#fff;background:var(--red);animation:kflash 1.2s infinite}
+  .wave{display:flex;align-items:center;gap:3px;height:34px;width:70px;flex-shrink:0}
+  .wave i{width:4px;background:var(--red2);border-radius:2px;height:6px}
+  .wave.on i{animation:wv .7s ease-in-out infinite}
+  .wave i:nth-child(2){animation-delay:.1s}.wave i:nth-child(3){animation-delay:.2s}
+  .wave i:nth-child(4){animation-delay:.3s}.wave i:nth-child(5){animation-delay:.15s}
+  @keyframes wv{50%{height:30px}}
+  .cmd input{
+    flex:1;background:var(--panel);border:1px solid var(--line);border-radius:10px;
+    padding:14px 16px;color:var(--text);font-family:'Inter';font-size:14px;outline:none;
+  }
+  .cmd input:focus{border-color:var(--red)}
+  .cmd input::placeholder{color:var(--muted)}
+  .scenarios{display:flex;gap:8px;flex-shrink:0}
+  .sc{
+    background:var(--panel);border:1px solid var(--line);color:var(--text);
+    font-family:'Archivo';font-style:italic;font-weight:800;font-size:11px;letter-spacing:1px;text-transform:uppercase;
+    padding:11px 13px;border-radius:9px;cursor:pointer;transition:all .2s;
+  }
+  .sc:hover{border-color:var(--red2);color:var(--red2)}
+  .sc.ok:hover{border-color:var(--green);color:var(--green)}
+  .sc.hl{background:rgba(232,9,46,.14);border-color:rgba(232,9,46,.45)}
+  /* ===== RESPONSIVIDADE ===== */
+  @media (max-width:1366px){
+    .brand h1{font-size:18px} .brand small{font-size:10px;letter-spacing:2px}
+    .brand img{height:36px}
+    .clock{font-size:21px}
+    .kpi .value{font-size:21px} .kpi .label{font-size:9px}
+    .kico{width:34px;height:34px} .kico svg{width:18px;height:18px}
+    .main{grid-template-columns:1fr 300px}
+    .sc{padding:9px 10px;font-size:10px;letter-spacing:.6px}
+    .mob-item b{font-size:16px}
+  }
+  @media (max-width:1080px){
+    body{overflow:auto}
+    .app{height:auto;min-height:100vh}
+    .kpis{grid-template-columns:repeat(3,1fr)}
+    .main{grid-template-columns:1fr}
+    .map-panel{height:400px}
+    .talk{min-height:220px}
+    .scenarios{flex-wrap:wrap}
+    .head-right{gap:12px} .clock{font-size:17px}
+  }
+  @media (prefers-reduced-motion: reduce){*{animation:none!important}}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <header>
+    <div class="brand">
+      <img src="data:image/png;base64,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" alt="SENAI-SP">
+      <div class="speedlines"><i></i><i></i><i></i></div>
+      <div>
+        <h1>Torre de Controle <em>Logística 4.0</em></h1>
+        <small>Curso de Logística e PCP · SENAI "Edward Sávio" · Jaú-SP</small>
+      </div>
+    </div>
+    <div class="head-right">
+      <div class="status" id="status"><span class="dot"></span><span id="statusTxt">Operação Normal</span></div>
+      <div class="clock" id="clock">--:--:--</div>
+    </div>
+  </header>
+
+  <div class="kpis" id="kpis"></div>
+
+  <div class="main">
+    <div class="map-panel">
+      <div class="map-title">Malha Logística <b>· Tempo Real</b></div>
+      <svg viewBox="0 0 640 640" id="map" preserveAspectRatio="xMidYMid meet"></svg>
+      <div class="map-badge" id="mapBadge">32 veículos em rota · 6 centros de distribuição · Fonte cartográfica: IBGE</div>
+    </div>
+    <div class="side">
+      <div class="card mob-card">
+        <h2>Escolas Móveis SENAI-SP</h2>
+        <div class="mob-grid">
+          <div class="mob-item"><b>78</b><span>Laboratórios sobre carretas</span></div>
+          <div class="mob-item"><b>40–168h</b><span>Cursos in loco</span></div>
+          <div class="mob-item"><b>16</b><span>Alunos por turma</span></div>
+          <div class="mob-item"><b>645</b><span>Municípios alcançáveis</span></div>
+        </div>
+        <div class="mob-foot">
+          <svg viewBox="0 0 24 24"><path d="M3 21V8l7-5 7 5v13M10 21v-6h4v6M3 21h18"/></svg>
+          Fabricadas no Centro de Treinamento SENAI de Lençóis Paulista-SP
+        </div>
+      </div>
+      <div class="card alerts">
+        <h2>Alertas Operacionais</h2>
+        <div id="alerts"></div>
+      </div>
+      <div class="card talk">
+        <h2>Diálogo com a Torre</h2>
+        <div class="feed" id="feed"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="cmd">
+    <div class="hear" id="hear"><span class="hdot"></span><span id="hearTxt"></span></div>
+    <button class="mic" id="mic" title="Ativar/desativar escuta contínua">
+      <svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3M8 21h8"/></svg>
+    </button>
+    <div class="wave" id="wave"><i></i><i></i><i></i><i></i><i></i></div>
+    <input id="input" placeholder='Escuta contínua: clique no microfone 1x e diga "Torre, ..." — ou digite aqui: "situação da operação" · "panorama das unidades móveis"'>
+    <div class="scenarios" id="scLog">
+      <button class="sc" onclick="cmd('situação da operação')">Briefing</button>
+      <button class="sc" onclick="cmd('simula um bloqueio na rodovia')">Bloqueio</button>
+      <button class="sc" onclick="cmd('porto de santos congestionado')">Porto</button>
+      <button class="sc" onclick="cmd('simula a black friday')">Black Friday</button>
+      <button class="sc hl" onclick="cmd('mostra as escolas móveis')">Escolas Móveis</button>
+      <button class="sc ok" onclick="cmd('normalizar operação')">Normalizar</button>
+    </div>
+    <div class="scenarios" id="scMob" style="display:none">
+      <button class="sc" onclick="cmd('demanda urgente de qualificação em araçatuba')">Demanda Urgente</button>
+      <button class="sc" onclick="cmd('manutenção da carreta de taubaté')">Manutenção</button>
+      <button class="sc" onclick="cmd('enchente na rota da carreta')">Rota Interditada</button>
+      <button class="sc" onclick="cmd('agenda das escolas móveis')">Agenda</button>
+      <button class="sc ok" onclick="cmd('voltar para visão nacional')">Visão Nacional</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ================= GEOMETRIA OFICIAL (IBGE) ================= */
+const BR_PATH="M200.9,303.3L205.4,304.0L209.0,309.3L221.6,308.7L229.4,313.6L233.0,332.5L228.1,332.5L233.1,338.1L234.0,349.8L261.6,350.4L259.3,355.5L260.2,363.3L269.8,368.9L274.2,378.8L264.2,401.3L268.2,404.4L263.7,408.4L268.8,419.3L266.3,435.7L283.2,438.8L289.9,435.6L292.5,438.4L298.0,438.6L301.2,443.6L304.2,463.3L316.5,461.5L320.9,464.9L316.4,487.4L323.5,486.0L327.2,488.4L330.5,497.1L330.0,507.3L321.0,514.8L313.1,516.1L311.2,519.7L299.0,526.5L300.2,529.1L297.6,528.2L272.1,555.1L276.7,556.8L279.7,553.8L284.1,554.3L295.3,564.0L295.6,568.4L301.9,564.8L306.8,570.9L316.5,573.9L328.9,583.1L334.2,590.6L338.7,591.7L345.5,584.1L343.9,594.5L337.7,594.0L333.5,599.1L332.0,606.3L334.5,607.7L345.5,598.3L353.2,584.3L351.3,578.3L354.2,577.4L355.3,572.4L362.9,568.5L363.8,561.9L365.1,562.9L367.6,558.3L365.0,553.2L370.5,558.9L375.4,555.3L375.7,559.5L373.4,557.9L373.6,563.9L366.8,568.4L365.9,574.0L357.5,579.7L353.2,579.5L353.5,584.1L372.9,568.8L389.4,541.2L402.7,530.4L408.2,515.1L404.6,512.2L406.6,510.4L403.6,503.3L406.3,496.9L404.9,493.1L416.0,478.3L441.9,461.3L451.6,461.4L452.0,458.3L457.2,455.3L464.0,454.5L463.2,449.8L467.8,448.0L483.0,449.4L486.3,444.4L485.9,448.5L501.7,448.7L502.8,442.3L517.0,434.7L516.2,426.7L520.6,417.6L525.8,413.7L529.6,404.1L534.6,399.7L536.0,382.2L544.5,370.7L543.4,363.0L548.7,343.6L545.6,327.3L547.2,305.4L560.6,296.2L576.7,269.8L585.1,264.6L600.6,245.9L608.1,227.2L608.6,215.3L599.4,186.7L573.7,182.7L554.5,164.5L533.0,152.0L509.5,152.7L482.9,144.2L477.2,146.8L478.2,142.9L471.6,150.2L468.8,150.4L472.3,145.2L468.3,146.4L464.0,154.6L463.5,149.6L467.5,144.2L465.9,141.4L462.7,143.4L465.6,139.0L463.9,135.4L461.6,136.1L463.1,133.1L459.3,133.2L460.1,130.5L453.2,133.3L453.5,129.4L450.8,131.4L451.9,128.9L450.5,130.0L448.6,126.6L447.8,128.5L445.1,125.2L441.7,127.4L440.3,122.8L436.3,124.8L437.0,122.5L433.8,124.0L434.2,121.7L430.5,120.6L429.3,122.4L423.8,118.4L421.1,120.2L415.6,118.0L409.4,123.3L406.7,122.6L407.4,113.0L393.4,112.5L393.5,109.1L388.6,107.5L391.5,104.2L381.7,104.7L383.8,101.3L380.9,98.7L385.9,94.2L385.4,84.8L377.9,83.1L374.1,78.1L368.8,63.4L368.2,52.4L362.3,44.2L360.0,43.2L359.8,49.9L341.3,77.4L329.0,74.6L318.7,77.1L310.4,71.5L304.7,74.0L296.0,72.4L293.7,76.3L297.1,79.7L295.7,82.7L275.8,80.5L273.0,84.5L266.4,85.2L265.7,87.4L261.2,86.2L258.8,91.0L254.0,92.4L241.2,83.8L240.7,76.7L238.1,74.8L238.5,57.1L243.8,51.5L240.5,44.4L234.2,43.0L237.0,34.8L233.5,31.9L226.3,32.5L228.0,36.6L221.9,43.1L217.1,42.8L208.1,49.1L200.6,48.0L195.8,50.5L196.1,55.5L193.0,56.4L189.3,51.4L178.0,52.5L175.0,48.8L165.5,46.8L174.7,56.9L177.2,73.3L186.9,73.9L187.0,76.2L176.7,81.2L176.6,85.0L172.5,89.3L171.7,87.2L161.3,92.6L156.1,99.6L154.1,99.0L154.2,94.8L143.4,98.8L135.4,91.5L132.0,92.5L131.9,84.1L127.6,76.6L119.4,82.7L115.9,80.5L116.2,84.1L91.3,84.5L91.3,93.8L99.9,94.1L102.1,100.2L96.7,98.8L88.3,101.4L88.2,112.5L94.8,117.3L97.9,126.1L89.8,172.7L86.1,174.0L84.2,170.9L77.8,171.1L75.1,174.3L60.9,176.3L46.8,185.5L41.3,198.7L42.7,205.6L34.3,210.6L34.2,217.9L30.5,218.2L30.1,220.9L45.3,242.2L41.6,248.6L54.5,250.0L56.9,257.3L71.2,256.8L81.7,248.8L79.9,272.0L97.5,271.0L110.5,273.7L117.4,267.4L122.9,267.6L138.8,255.8L154.4,254.9L157.0,252.7L158.6,260.5L156.7,266.4L159.1,271.8L157.5,275.8L162.4,286.8L173.4,294.2L180.7,293.1L191.0,296.2L195.6,301.7L200.9,303.3Z";
+const SP_PATH="M433.0,432.0L435.6,426.2L428.3,425.8L424.9,417.9L427.0,414.9L424.1,411.2L425.1,408.1L421.5,404.3L415.9,404.7L415.3,406.7L414.0,405.4L412.6,407.1L410.2,405.3L410.0,407.0L401.6,407.2L400.5,411.4L399.0,407.2L395.3,409.0L395.3,404.4L377.3,401.6L364.2,410.3L349.1,436.0L338.3,443.4L346.0,442.7L351.5,444.3L353.1,442.0L361.2,444.7L365.5,444.2L373.4,448.6L384.6,447.7L389.2,452.0L390.0,461.7L396.0,469.0L394.4,473.7L405.1,473.9L405.4,479.8L410.0,478.3L411.0,481.7L413.4,482.1L412.3,483.2L417.1,477.3L430.8,467.1L437.6,463.5L439.1,464.5L443.6,460.7L451.6,461.4L452.0,458.3L459.3,454.1L462.1,454.6L459.6,452.5L460.9,449.1L468.6,446.7L470.4,444.4L463.4,443.4L460.9,440.3L452.1,444.0L447.5,442.9L446.5,447.0L438.0,447.7L438.3,445.6L436.1,444.4L437.2,442.3L432.6,438.9L434.3,436.3L432.6,435.6L434.2,434.6L433.0,432.0Z";
+
+/* ================= ESTADO ================= */
+const ICONS={
+  otif:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M8 12.5l2.5 2.5L16 9.5"/></svg>',
+  lead:'<svg viewBox="0 0 24 24"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l3 2M9 2h6"/></svg>',
+  custo:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M14.5 8.5c-.6-.9-1.6-1.4-2.7-1.4-1.8 0-3.2 1.1-3.2 2.5s1.2 2 3.2 2.4c2.2.4 3.4 1.1 3.4 2.6 0 1.4-1.5 2.5-3.4 2.5-1.3 0-2.4-.6-3-1.5M12 5.5v13"/></svg>',
+  frota:'<svg viewBox="0 0 24 24"><path d="M4 19a8 8 0 1 1 16 0M12 11l3.5 3.5M12 19h.01"/></svg>',
+  transito:'<svg viewBox="0 0 24 24"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9L12 3zM12 12l8-4.5M12 12v9M12 12L4 7.5"/></svg>',
+  co2:'<svg viewBox="0 0 24 24"><path d="M12 21c-5 0-8-3-8-8 0-6 5-10 13-10-1 2-1 3 0 5 3 1 3 5 1 8-1.7 2.5-3.5 4-6 5zM7 17c2-4 5-7 9-9"/></svg>'
+};
+const ICONS_MOB={
+  campo:'<svg viewBox="0 0 24 24"><path d="M2 6h11v9H2zM13 9h5l3 3v3h-3M2 15h19M6.5 18.5a1.8 1.8 0 1 0 0-.01M16.5 18.5a1.8 1.8 0 1 0 0-.01"/></svg>',
+  alunos:'<svg viewBox="0 0 24 24"><path d="M12 4L2 8.5 12 13l10-4.5L12 4zM6 10.8V15c0 1.5 2.7 3 6 3s6-1.5 6-3v-4.2M20 9.5V14"/></svg>',
+  municipios:'<svg viewBox="0 0 24 24"><path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.6"/></svg>',
+  km:'<svg viewBox="0 0 24 24"><path d="M5 21c3-8 3-13 7-13s4 5 7 13M12 3v3M12 10v2M12 15v2"/></svg>',
+  agenda:'<svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4M8 14.5l2.5 2.5 5-5"/></svg>',
+  horas:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg>'
+};
+const KPI_LOG={
+  otif:{label:'OTIF · Entregas',v:97.2,unit:'%',dec:1,trend:'+0,4 vs ontem'},
+  lead:{label:'Lead Time Médio',v:36,unit:'h',dec:0,trend:'-2h vs semana'},
+  custo:{label:'Custo / Entrega',v:48.30,unit:'',dec:2,prefix:true,trend:'-1,2%'},
+  frota:{label:'Ocupação Frota',v:88,unit:'%',dec:0,trend:'+3%'},
+  transito:{label:'Em Trânsito',v:412,unit:'',dec:0,trend:'▲ ao vivo'},
+  co2:{label:'CO₂ Evitado',v:186,unit:'kg',dec:0,trend:'rotas otimizadas'}
+};
+const KPI_MOB={
+  campo:{label:'Carretas em Campo',v:5,unit:'un',dec:0,trend:'de 78 na frota SP'},
+  alunos:{label:'Alunos em Formação',v:380,unit:'',dec:0,trend:'turmas de até 16'},
+  municipios:{label:'Municípios na Agenda',v:23,unit:'',dec:0,trend:'trimestre atual'},
+  km:{label:'KM Mobilizados',v:12600,unit:'km',dec:0,mil:true,trend:'trimestre atual'},
+  agenda:{label:'Ocupação da Agenda',v:92,unit:'%',dec:0,trend:'alta demanda'},
+  horas:{label:'Horas-aula no Mês',v:3240,unit:'h',dec:0,mil:true,trend:'cursos 40–168h'}
+};
+const MOB_BASE=JSON.parse(JSON.stringify(KPI_MOB));
+const state = {
+  mode:'normal',
+  kpiSet:'log',
+  kpi:KPI_LOG,
+  kpiClass:{}
+};
+function setKpiSet(set){
+  state.kpiSet=set;
+  state.kpi=(set==='mob')?KPI_MOB:KPI_LOG;
+  state.kpiClass={};
+  renderKpis();
+}
+function resetMob(){
+  for(const k in MOB_BASE) Object.assign(KPI_MOB[k],JSON.parse(JSON.stringify(MOB_BASE[k])));
+}
+
+/* ================= CIDADES E ROTAS (coordenadas reais projetadas) ================= */
+const cities = {
+  manaus:{x:236.3,y:155.4,n:'Manaus'}, belem:{x:406.3,y:131.2,n:'Belém'},
+  fortaleza:{x:553.3,y:164.6,n:'Fortaleza'}, recife:{x:607.3,y:228.5,n:'Recife'},
+  salvador:{x:553.8,y:301.1,n:'Salvador'}, brasilia:{x:414.7,y:342.6,n:'Brasília'},
+  cuiaba:{x:294.2,y:339.9,n:'Cuiabá'}, ribeirao:{x:416.5,y:412.3,n:'Ribeirão Preto'},
+  jau:{x:405.5,y:438.8,n:'JAÚ',hub:true}, sp:{x:433.9,y:457.3,n:'São Paulo'},
+  santos:{x:438.4,y:472.3,n:'Santos'}, curitiba:{x:392.0,y:492.0,n:'Curitiba'},
+  paranagua:{x:412.2,y:499.3,n:'Paranaguá'}, poa:{x:366.0,y:552.9,n:'Porto Alegre'}
+};
+// Cidades do estado de SP (coordenadas reais projetadas) — visão zoom
+// lbl = posição do rótulo (dx/dy/anchor) definida cidade a cidade para evitar sobreposição
+const spCities = {
+  jau:{x:405.5,y:438.8,n:'JAÚ',hub:true,lbl:{dx:0,dy:-3,anchor:'middle'}},
+  bauru:{x:396.1,y:439.0,n:'Bauru',lbl:{dx:-2.4,dy:1.4,anchor:'end'}},
+  lencois:{x:401.9,y:444.4,n:'Lençóis Paulista',lbl:{dx:-2.4,dy:1.2,anchor:'end'}},
+  botucatu:{x:407.2,y:448.5,n:'Botucatu',lbl:{dx:2,dy:3.4,anchor:'start'}},
+  marilia:{x:384.9,y:437.5,n:'Marília',lbl:{dx:0,dy:-2.6,anchor:'middle'}},
+  prudente:{x:363.7,y:436.3,n:'Pres. Prudente',lbl:{dx:-2.4,dy:1.4,anchor:'end'}},
+  riopreto:{x:393.3,y:417.0,n:'S.J. Rio Preto',lbl:{dx:0,dy:-2.4,anchor:'middle'}},
+  aracatuba:{x:377.9,y:422.7,n:'Araçatuba',lbl:{dx:2.6,dy:1.4,anchor:'start'}},
+  ribeirao:{x:416.5,y:422.3,n:'Ribeirão Preto',lbl:{dx:2.6,dy:1.4,anchor:'start'}},
+  franca:{x:422.6,y:412.8,n:'Franca',lbl:{dx:2.6,dy:1.4,anchor:'start'}},
+  campinas:{x:427.6,y:447.8,n:'Campinas',lbl:{dx:2.6,dy:0.2,anchor:'start'}},
+  sorocaba:{x:421.8,y:456.5,n:'Sorocaba',lbl:{dx:-2.4,dy:1.4,anchor:'end'}},
+  piracicaba:{x:418.9,y:445.0,n:'Piracicaba',lbl:{dx:0,dy:-2.4,anchor:'middle'}},
+  taubate:{x:449.9,y:449.6,n:'Taubaté',lbl:{dx:1,dy:-2.8,anchor:'start'}},
+  sjc:{x:445.0,y:452.8,n:'S.J. Campos',lbl:{dx:2.6,dy:1.4,anchor:'start'}},
+  santos:{x:438.4,y:463.3,n:'Santos',lbl:{dx:2.6,dy:1.4,anchor:'start'}},
+  saopaulo:{x:433.9,y:457.3,n:'São Paulo',lbl:{dx:2.6,dy:1.4,anchor:'start'}}
+};
+// Onde há carretas-escola posicionadas (visão SP)
+const carretaSpots=['prudente','riopreto','taubate','sorocaba','marilia','franca'];
+// Vistas do mapa (viewBox): Brasil inteiro e zoom no estado de SP
+const VIEW_BR=[0,0,640,640];
+const VIEW_SP=[321,384,168,120];
+const routes = [
+  ['jau','sp','r_jsp'], ['sp','santos','r_ssan'], ['jau','ribeirao','r_jrib'],
+  ['ribeirao','brasilia','r_rbsb'], ['brasilia','salvador','r_bsal'],
+  ['salvador','recife','r_salre'], ['recife','fortaleza','r_refor'],
+  ['brasilia','cuiaba','r_bcui'], ['cuiaba','manaus','r_cman'],
+  ['brasilia','belem','r_bbel'], ['jau','curitiba','r_jcur'],
+  ['curitiba','poa','r_cpoa'], ['curitiba','paranagua','r_cpar']
+];
+
+/* ================= MAPA ================= */
+const svg = document.getElementById('map');
+const NS = 'http://www.w3.org/2000/svg';
+function el(t,a){const e=document.createElementNS(NS,t);for(const k in a)e.setAttribute(k,a[k]);return e}
+
+// fundo: Brasil + contorno de SP (sempre visíveis)
+svg.appendChild(el('path',{class:'brazil',d:BR_PATH}));
+svg.appendChild(el('path',{class:'spstate',id:'spstate',d:SP_PATH}));
+
+/* --- CAMADA NACIONAL --- */
+const natLayer=el('g',{id:'natLayer'}); svg.appendChild(natLayer);
+routes.forEach(([a,b,id])=>{
+  const A=cities[a],B=cities[b];
+  natLayer.appendChild(el('line',{class:'route',id,x1:A.x,y1:A.y,x2:B.x,y2:B.y}));
+});
+for(const k in cities){
+  const c=cities[k], g=el('g',{class:c.hub?'city-hub':''});
+  if(c.hub) g.appendChild(el('circle',{class:'city-ring',cx:c.x,cy:c.y,r:5}));
+  g.appendChild(el('circle',{class:'city-dot',cx:c.x,cy:c.y,r:c.hub?5:3.2}));
+  const t=el('text',{class:'city-label',x:c.x+8,y:c.y+4}); t.textContent=c.n; g.appendChild(t);
+  natLayer.appendChild(g);
+}
+const trucks=[];
+routes.forEach(([a,b],i)=>{
+  for(let j=0;j<(i%2?1:2);j++){
+    const d=el('circle',{class:'truck',r:2.6});
+    natLayer.appendChild(d);
+    trucks.push({d,a:cities[a],b:cities[b],p:Math.random(),s:.0018+Math.random()*.0022,route:routes[i][2]});
+  }
+});
+
+/* --- CAMADA SP (visível no zoom) --- */
+const spLayer=el('g',{id:'spLayer'}); svg.appendChild(spLayer);
+const TRUCK_D='M0,0h11v6h4l3,3v3h-2a2,2 0 1,1-4,0h-6a2,2 0 1,1-4,0h-2z';
+const F=spCities.lencois;
+// linhas de mobilização: da fábrica (Lençóis Paulista) até cada carreta em campo
+carretaSpots.forEach(k=>{
+  const C=spCities[k];
+  spLayer.appendChild(el('line',{class:'mobline',id:'mline_'+k,x1:F.x,y1:F.y,x2:C.x,y2:C.y}));
+});
+// linha de mobilização emergencial p/ Araçatuba (cenário demanda) — começa oculta
+spLayer.appendChild(el('line',{class:'mobline deploy off',id:'mline_aracatuba',x1:F.x,y1:F.y,x2:spCities.aracatuba.x,y2:spCities.aracatuba.y}));
+// rota alternativa Lençóis→Marília→Prudente (cenário rota interditada) — oculta
+spLayer.appendChild(el('polyline',{class:'mobline alt off',id:'mline_alt',points:`${F.x},${F.y} ${spCities.marilia.x},${spCities.marilia.y} ${spCities.prudente.x},${spCities.prudente.y}`}));
+// cidades SP (rótulo posicionado individualmente)
+for(const k in spCities){
+  const c=spCities[k];
+  const g=el('g',{class:c.hub?'sphub':''});
+  g.appendChild(el('circle',{class:'spcity',cx:c.x,cy:c.y,r:c.hub?1.9:1.3}));
+  const L=c.lbl||{dx:2.6,dy:1.4,anchor:'start'};
+  const t=el('text',{class:'spcity-label',x:c.x+L.dx,y:c.y+L.dy,'text-anchor':L.anchor});
+  t.textContent=c.n; g.appendChild(t);
+  spLayer.appendChild(g);
+}
+// carretas em campo + fábrica
+function addCarreta(id,x,y,scale){
+  const g=el('g',{class:'car2',id});
+  const p=el('path',{d:TRUCK_D,transform:`translate(${x-3.4},${y-5.6}) scale(${scale||0.34})`});
+  p.style.animationDelay=(-Math.random()*3.4).toFixed(2)+'s'; // dessincroniza o pulso de cada carreta
+  g.appendChild(p);
+  spLayer.appendChild(g);
+  return g;
+}
+carretaSpots.forEach(k=>{const c=spCities[k];addCarreta('car_'+k,c.x,c.y)});
+spLayer.appendChild(el('circle',{class:'factory2',cx:F.x,cy:F.y,r:2.5}));
+const ftxt=el('text',{class:'spcity-label',x:F.x-2.4,y:F.y+5.4,'text-anchor':'end',style:'fill:var(--amber)'});
+ftxt.textContent='● fábrica das carretas'; spLayer.appendChild(ftxt);
+// carreta móvel do cenário de demanda (viaja Lençóis→Araçatuba) — oculta
+const carDeploy=addCarreta('car_deploy',F.x,F.y); carDeploy.classList.add('hide');
+
+/* --- ANIMAÇÕES: veículos + zoom de câmera --- */
+let incidentMark=null;
+let deployAnim=null; // {t0,ms,from,to}
+function tick(ts){
+  trucks.forEach(t=>{
+    t.p+=t.s; if(t.p>1)t.p=0;
+    t.d.setAttribute('cx',t.a.x+(t.b.x-t.a.x)*t.p);
+    t.d.setAttribute('cy',t.a.y+(t.b.y-t.a.y)*t.p);
+  });
+  if(deployAnim){
+    const p=Math.min((ts-deployAnim.t0)/deployAnim.ms,1);
+    const e=p<.5?2*p*p:1-Math.pow(-2*p+2,2)/2;
+    const x=deployAnim.from.x+(deployAnim.to.x-deployAnim.from.x)*e;
+    const y=deployAnim.from.y+(deployAnim.to.y-deployAnim.from.y)*e;
+    carDeploy.firstChild.setAttribute('transform',`translate(${x-3.4},${y-5.6}) scale(0.34)`);
+    if(p>=1)deployAnim=null;
+  }
+  requestAnimationFrame(tick);
+}
+requestAnimationFrame(tick);
+
+let zoomAnim=null, curView=[...VIEW_BR];
+svg.setAttribute('viewBox',curView.join(' '));
+function zoomTo(target,ms=1400){
+  const from=[...curView], t0=performance.now();
+  cancelAnimationFrame(zoomAnim);
+  (function step(t){
+    const p=Math.min((t-t0)/ms,1);
+    const e=p<.5?2*p*p:1-Math.pow(-2*p+2,2)/2; // easing suave
+    curView=from.map((v,i)=>v+(target[i]-v)*e);
+    svg.setAttribute('viewBox',curView.join(' '));
+    if(p<1)zoomAnim=requestAnimationFrame(step);
+  })(t0);
+}
+
+/* ================= RENDER ================= */
+function fmt(k){
+  const K=state.kpi[k];
+  let v=K.mil?Math.round(K.v).toLocaleString('pt-BR'):K.v.toFixed(K.dec).replace('.',',');
+  return K.prefix?`<span>R$ </span>${v}`:`${v}<span> ${K.unit}</span>`;
+}
+function renderKpis(){
+  document.getElementById('kpis').innerHTML=Object.keys(state.kpi).map(k=>{
+    const K=state.kpi[k], ic=ICONS[k]||ICONS_MOB[k];
+    return `<div class="kpi ${state.kpiClass[k]||''}"><div class="kico">${ic}</div><div>
+      <div class="label">${K.label}</div><div class="value">${fmt(k)}</div>
+      <div class="trend ${(state.kpiClass[k]==='crit')?'down':''}">${K.trend}</div></div></div>`;
+  }).join('');
+}
+function alerta(type,txt){
+  const box=document.getElementById('alerts');
+  const t=new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+  box.insertAdjacentHTML('afterbegin',`<div class="alert ${type}"><span class="t">${t}</span><span>${txt}</span></div>`);
+  while(box.children.length>3)box.lastChild.remove();
+}
+function msg(who,txt){
+  const f=document.getElementById('feed');
+  f.insertAdjacentHTML('beforeend', who==='user'
+    ? `<div class="msg user">${txt}</div>`
+    : `<div class="msg tower"><b>Torre</b>${txt}</div>`);
+  f.scrollTop=f.scrollHeight;
+}
+
+/* ================= VOZ (TTS com seleção de voz de qualidade) ================= */
+let bestVoice=null;
+function pickVoice(){
+  const vs=speechSynthesis.getVoices();
+  const prefs=[
+    v=>/pt[-_]BR/i.test(v.lang)&&/natural/i.test(v.name),          // Edge vozes neurais
+    v=>/pt[-_]BR/i.test(v.lang)&&/google/i.test(v.name),           // Chrome Google pt-BR
+    v=>/pt[-_]BR/i.test(v.lang)&&/(luciana|francisca|thalita|felipe)/i.test(v.name),
+    v=>/pt[-_]BR/i.test(v.lang),
+    v=>/^pt/i.test(v.lang)
+  ];
+  for(const p of prefs){const v=vs.find(p);if(v){bestVoice=v;return}}
+}
+speechSynthesis.onvoiceschanged=pickVoice; pickVoice();
+
+function speak(txt){
+  try{
+    speechSynthesis.cancel();
+    const clean=txt.replace(/<[^>]+>/g,'').replace(/[*_#`]/g,'');
+    // fala por sentenças: evita corte do navegador em textos longos e soa mais natural
+    const parts=clean.match(/[^.!?]+[.!?]+|[^.!?]+$/g)||[clean];
+    speaking=true; stopRec(); // pausa a escuta p/ a Torre não ouvir a si mesma
+    document.getElementById('wave').classList.add('on');
+    const done=()=>{
+      document.getElementById('wave').classList.remove('on');
+      speaking=false;
+      if(alwaysOn)setTimeout(startRec,350);
+    };
+    parts.forEach((p,i)=>{
+      const u=new SpeechSynthesisUtterance(p.trim());
+      u.lang='pt-BR'; u.rate=1.0; u.pitch=1.0;
+      if(bestVoice)u.voice=bestVoice;
+      if(i===parts.length-1){u.onend=done;u.onerror=done;}
+      speechSynthesis.speak(u);
+    });
+  }catch(e){speaking=false;}
+}
+
+/* ================= CENÁRIOS ================= */
+function setStatus(cls,txt){
+  const s=document.getElementById('status');
+  s.className='status '+cls; document.getElementById('statusTxt').textContent=txt;
+}
+function drift(k,to,ms=1800){
+  const K=state.kpi[k],from=K.v,t0=performance.now();
+  (function step(t){const p=Math.min((t-t0)/ms,1);K.v=from+(to-from)*p;renderKpis();if(p<1)requestAnimationFrame(step)})(t0);
+}
+function clearIncident(){ if(incidentMark){incidentMark.remove();incidentMark=null} }
+function resetMobVisuals(){
+  document.querySelectorAll('.mobline').forEach(l=>l.classList.remove('blocked'));
+  document.getElementById('mline_aracatuba').classList.add('off');
+  document.getElementById('mline_alt').classList.add('off');
+  document.querySelectorAll('.car2').forEach(c=>c.classList.remove('warn'));
+  carDeploy.classList.add('hide');
+  document.querySelectorAll('.spincident').forEach(e=>e.remove());
+}
+function enterSP(){
+  document.getElementById('spstate').classList.add('on');
+  natLayer.classList.add('dim');
+  spLayer.classList.add('on');
+  document.getElementById('scLog').style.display='none';
+  document.getElementById('scMob').style.display='flex';
+  resetMob(); resetMobVisuals(); clearIncident();
+  setKpiSet('mob');
+  zoomTo(VIEW_SP);
+  document.getElementById('mapBadge').textContent='Escolas Móveis SENAI-SP · 6 carretas em campo · origem: Lençóis Paulista · Fonte cartográfica: IBGE';
+}
+function exitSP(){
+  document.getElementById('spstate').classList.remove('on');
+  natLayer.classList.remove('dim');
+  spLayer.classList.remove('on');
+  document.getElementById('scLog').style.display='flex';
+  document.getElementById('scMob').style.display='none';
+  resetMobVisuals();
+  setKpiSet('log');
+  zoomTo(VIEW_BR);
+}
+
+const scenarios={
+  bloqueio(){
+    if(state.kpiSet==='mob')exitSP();
+    state.mode='bloqueio'; setStatus('crit','Contingência Ativa');
+    ['r_jsp','r_ssan'].forEach(id=>document.getElementById(id).classList.add('blocked'));
+    ['r_jcur','r_cpar'].forEach(id=>document.getElementById(id).classList.add('alt'));
+    trucks.filter(t=>t.route==='r_jsp'||t.route==='r_ssan').forEach(t=>t.d.classList.add('crit'));
+    clearIncident();
+    incidentMark=el('circle',{class:'incident',cx:420,cy:448,r:7}); svg.appendChild(incidentMark);
+    drift('otif',91.4); drift('lead',52); drift('custo',56.10);
+    state.kpi.otif.trend='-5,8 · impacto bloqueio'; state.kpi.lead.trend='+16h · desvio de rota'; state.kpi.custo.trend='+16% · contingência';
+    state.kpiClass={otif:'crit',lead:'crit',custo:'warn'};
+    document.getElementById('mapBadge').textContent='40 veículos afetados · replanejamento automático em curso';
+    alerta('crit','<b>Bloqueio na SP-300</b> · 40 veículos em rota afetados. Corredor Jaú–SP interrompido.');
+    alerta('warn','<b>Rota alternativa ativada</b> via Curitiba/Paranaguá. Cargas prioritárias reordenadas.');
+    return 'Alerta crítico. Bloqueio detectado na rodovia SP-300, com 40 veículos em rota afetados. Ativei o plano de contingência: cargas urgentes redirecionadas pelo corredor sul, via Curitiba e Paranaguá, e clientes prioritários já notificados. Impacto estimado: OTIF cai para 91 por cento e o lead time sobe 16 horas. Recomendo aprovar frete emergencial para as 8 cargas mais críticas.';
+  },
+  porto(){
+    if(state.kpiSet==='mob')exitSP();
+    state.mode='porto'; setStatus('warn','Atenção · Porto');
+    document.getElementById('r_ssan').classList.add('blocked');
+    document.getElementById('r_cpar').classList.add('alt');
+    clearIncident();
+    incidentMark=el('circle',{class:'incident',cx:438.4,cy:472.3,r:7}); svg.appendChild(incidentMark);
+    drift('lead',44); drift('custo',52.80);
+    state.kpi.lead.trend='+8h · fila no porto'; state.kpi.custo.trend='+9% · demurrage';
+    state.kpiClass={lead:'warn',custo:'warn'};
+    alerta('warn','<b>Porto de Santos congestionado</b> · fila de 14 navios. Risco de demurrage em 6 contêineres.');
+    alerta('','<b>Sugestão da IA:</b> redirecionar 4 embarques para Paranaguá. Economia estimada: R$ 38 mil.');
+    return 'Atenção. O Porto de Santos está congestionado, com fila de 14 navios, e temos 6 contêineres com risco de custo de espera, o demurrage. Analisei as alternativas: redirecionando 4 embarques para o Porto de Paranaguá, evitamos 38 mil reais em custos e mantemos os prazos dos clientes principais. Aguardo aprovação para executar.';
+  },
+  blackfriday(){
+    if(state.kpiSet==='mob')exitSP();
+    state.mode='bf'; setStatus('warn','Pico de Demanda');
+    drift('transito',1240); drift('frota',99); drift('otif',94.8);
+    state.kpi.transito.trend='▲ 3x volume normal'; state.kpi.frota.trend='capacidade máxima'; state.kpi.otif.trend='-2,4 · sob pressão';
+    state.kpiClass={transito:'warn',frota:'crit',otif:'warn'};
+    document.getElementById('mapBadge').textContent='96 veículos em rota · pico Black Friday';
+    alerta('warn','<b>Pico Black Friday</b> · demanda 3x acima do normal. Frota em capacidade máxima.');
+    alerta('','<b>Plano da IA:</b> 2º turno no CD Jaú + priorização por SLA + 12 veículos spot contratados.');
+    return 'Pico de demanda detectado: volume três vezes acima do normal, padrão Black Friday. A frota atingiu capacidade máxima. Já montei o plano de resposta: segundo turno no centro de distribuição de Jaú, priorização das entregas por prazo de contrato, e contratação de 12 veículos spot no mercado. Com isso, seguramos o OTIF acima de 94 por cento mesmo no pico.';
+  },
+  escolas(){
+    state.mode='escolas'; setStatus('','Escolas Móveis · SP');
+    enterSP();
+    alerta('','<b>Zoom no estado de São Paulo</b> · 6 carretas-escola posicionadas no interior.');
+    alerta('warn','<b>Origem:</b> Centro de Treinamento SENAI Lençóis Paulista — fábrica das carretas-escola.');
+    return 'Aproximando a visão para o estado de São Paulo. Estas são as Escolas Móveis do SENAI: laboratórios tecnológicos completos montados sobre carretas, que levam formação profissional a qualquer município, mesmo onde não há unidade fixa. No mapa, seis carretas em campo atendendo o interior paulista, com cursos de 40 a 168 horas para turmas de até 16 alunos. E um detalhe especial: todas são projetadas e construídas aqui na nossa região, no Centro de Treinamento SENAI de Lençóis Paulista. É a logística a serviço da educação: a escola vai até onde a indústria precisa.';
+  },
+  mobDemanda(){
+    if(state.kpiSet!=='mob')enterSP();
+    state.mode='mob_demanda'; setStatus('warn','Mobilização Emergencial');
+    resetMob(); resetMobVisuals();
+    const l=document.getElementById('mline_aracatuba'); l.classList.remove('off');
+    carDeploy.classList.remove('hide');
+    deployAnim={t0:performance.now(),ms:5000,from:{x:F.x,y:F.y},to:{x:spCities.aracatuba.x,y:spCities.aracatuba.y}};
+    drift('campo',6); drift('alunos',412); drift('agenda',96); drift('municipios',24);
+    KPI_MOB.campo.trend='+1 · mobilização'; KPI_MOB.agenda.trend='+4% · encaixe emergencial';
+    state.kpiClass={campo:'warn',agenda:'warn'};
+    alerta('warn','<b>Demanda emergencial</b> · usina em Araçatuba precisa qualificar 32 operadores em 30 dias.');
+    alerta('','<b>Plano da Torre:</b> carreta-laboratório mobilizada de Lençóis Paulista · 118 km · operação em 48h.');
+    return 'Demanda emergencial recebida. Uma usina da região de Araçatuba precisa qualificar 32 operadores de processos em 30 dias, e não há unidade fixa disponível na cidade. Solução em curso: mobilizei uma carreta-laboratório a partir de Lençóis Paulista, são 118 quilômetros de deslocamento, com a escola montada e operando em até 48 horas. Duas turmas de 16 alunos em regime intensivo. É a fábrica de escolas atendendo a indústria na velocidade que ela precisa.';
+  },
+  mobManutencao(){
+    if(state.kpiSet!=='mob')enterSP();
+    state.mode='mob_manut'; setStatus('warn','Manutenção Programada');
+    resetMob(); resetMobVisuals();
+    document.getElementById('car_taubate').classList.add('warn');
+    document.getElementById('mline_taubate').classList.add('blocked');
+    drift('campo',5); drift('agenda',87); drift('horas',3050);
+    KPI_MOB.campo.trend='-1 · em readequação'; KPI_MOB.agenda.trend='-5% · janela técnica';
+    state.kpiClass={campo:'warn',agenda:'warn'};
+    alerta('warn','<b>Manutenção programada</b> · carreta de Taubaté retorna ao CT Lençóis Paulista p/ readequação de laboratório.');
+    alerta('','<b>Contingência:</b> turmas remanejadas para S.J. Campos · nenhum aluno sem aula.');
+    return 'Janela técnica ativada. A carreta que atende Taubaté retorna ao Centro de Treinamento de Lençóis Paulista para readequação do laboratório, que será reconfigurado para um novo curso. Impacto controlado: as turmas em andamento foram remanejadas para a unidade de São José dos Campos, e nenhum aluno fica sem aula. Em Lençóis, a mesma equipe que fabrica as carretas executa a reforma. Previsão de retorno ao campo: 12 dias.';
+  },
+  mobRota(){
+    if(state.kpiSet!=='mob')enterSP();
+    state.mode='mob_rota'; setStatus('crit','Rota Interditada');
+    resetMob(); resetMobVisuals();
+    document.getElementById('mline_prudente').classList.add('blocked');
+    document.getElementById('mline_alt').classList.remove('off');
+    const mx=(F.x+spCities.prudente.x)/2, my=(F.y+spCities.prudente.y)/2;
+    spLayer.appendChild(el('circle',{class:'spincident',cx:mx,cy:my,r:2.2}));
+    drift('km',12840);
+    KPI_MOB.km.trend='+240 km · desvio'; state.kpiClass={km:'warn'};
+    alerta('crit','<b>Interdição na SP-294</b> · alagamento bloqueia o corredor direto para Presidente Prudente.');
+    alerta('','<b>Rota alternativa traçada</b> via Marília · +240 km · cronograma de aulas preservado.');
+    return 'Alerta de rota. Alagamento na rodovia interditou o corredor direto entre Lençóis Paulista e Presidente Prudente, onde uma carreta inicia turma na segunda-feira. Já tracei a rota alternativa passando por Marília: são 240 quilômetros adicionais, mas a carreta chega dentro da janela planejada e o cronograma de aulas está preservado. Transportadora e escola de destino já notificadas. Na logística, o plano B nunca é improviso: ele já estava pronto.';
+  },
+  mobAgenda(){
+    if(state.kpiSet!=='mob')enterSP();
+    const k=state.kpi;
+    return `Agenda das Escolas Móveis. Temos ${Math.round(k.campo.v)} carretas em campo atendendo ${Math.round(k.municipios.v)} municípios neste trimestre, com ${Math.round(k.alunos.v)} alunos em formação e ocupação de agenda em ${Math.round(k.agenda.v)} por cento. Já foram ${Math.round(k.horas.v)} horas-aula entregues no mês e ${(k.km.v/1000).toFixed(1).replace('.',',')} mil quilômetros mobilizados. A fila de espera confirma: quando a escola vai até a indústria, a demanda aparece.`;
+  },
+  normal(){
+    if(state.kpiSet==='mob')exitSP();
+    state.mode='normal'; setStatus('','Operação Normal');
+    document.querySelectorAll('.route').forEach(r=>r.classList.remove('blocked','alt'));
+    trucks.forEach(t=>t.d.classList.remove('crit'));
+    clearIncident();
+    drift('otif',97.2); drift('lead',36); drift('custo',48.30); drift('transito',412); drift('frota',88);
+    state.kpi.otif.trend='+0,4 vs ontem'; state.kpi.lead.trend='-2h vs semana'; state.kpi.custo.trend='-1,2%';
+    state.kpi.transito.trend='▲ ao vivo'; state.kpi.frota.trend='+3%';
+    state.kpiClass={};
+    document.getElementById('mapBadge').textContent='32 veículos em rota · 6 centros de distribuição · Fonte cartográfica: IBGE';
+    alerta('','<b>Operação normalizada.</b> Todos os indicadores dentro da meta.');
+    return 'Operação normalizada. Todas as rotas liberadas e indicadores de volta às metas. OTIF em 97 vírgula 2 por cento, lead time de 36 horas e frota com 88 por cento de ocupação. Seguimos monitorando.';
+  },
+  briefing(){
+    const k=state.kpi;
+    return `Briefing da operação. Neste momento temos ${Math.round(k.transito.v)} pedidos em trânsito atendidos por 6 centros de distribuição. OTIF em ${k.otif.v.toFixed(1).replace('.',',')} por cento, ${k.otif.v>95?'acima da meta':'abaixo da meta, em recuperação'}. Lead time médio de ${Math.round(k.lead.v)} horas e custo por entrega de ${k.custo.v.toFixed(2).replace('.',',')} reais. ${state.mode==='normal'?'Nenhum risco crítico no radar. Operação estável.':'Há ocorrências ativas sendo tratadas pelo plano de contingência.'} Hoje as rotas otimizadas pela inteligência artificial já evitaram ${Math.round(k.co2.v)} quilos de gás carbônico.`;
+  }
+};
+
+/* ================= INTERPRETAÇÃO ================= */
+function localIntent(q){
+  const s=q.toLowerCase();
+  const mob=state.kpiSet==='mob';
+  // cenários das carretas (checados antes dos nacionais)
+  if(/manuten|readequa/.test(s)) return scenarios.mobManutencao();
+  if(/ara[çc]atuba|mobiliza|demanda urgente|qualificar|treinar 32/.test(s)) return scenarios.mobDemanda();
+  if(/enchente|alagamento/.test(s)||(mob&&/interdi|bloqueio|rota/.test(s))) return scenarios.mobRota();
+  if((mob&&/agenda|panorama/.test(s))||(/agenda|panorama/.test(s)&&/escola|carreta|m[oó]ve|unidade/.test(s))) return scenarios.mobAgenda();
+  if(/nacional|visão geral|país|brasil/.test(s)) return scenarios.normal();
+  // cenários nacionais
+  if(/(bloqueio|greve|interdi|fechad.*rodovia|acidente)/.test(s)) return scenarios.bloqueio();
+  if(/porto|santos|navio|cont[eê]iner/.test(s)) return scenarios.porto();
+  if(/black|pico|demanda|natal/.test(s)) return scenarios.blackfriday();
+  if(/escola|carreta|m[oó]vel|m[oó]veis|len[çc][oó]is|unidade/.test(s)) return scenarios.escolas();
+  if(/normal|resolve|encerra|libera|volta/.test(s)) return scenarios.normal();
+  if(/situa|briefing|resumo|status|panorama|como est/.test(s)) return mob?scenarios.mobAgenda():scenarios.briefing();
+  return null;
+}
+
+async function askClaude(q){
+  const painel=Object.keys(state.kpi).map(k=>`${state.kpi[k].label}: ${state.kpi[k].v.toFixed(state.kpi[k].dec)}${state.kpi[k].unit}`).join(', ');
+  const ctx=`Você é a "Torre", assistente de IA de uma torre de controle logística demonstrada no SENAI-SP de Jaú (curso de Logística e PCP). Visão atual do painel: ${state.kpiSet==='mob'?'ZOOM no estado de SP mostrando as Escolas Móveis':'mapa nacional da malha logística'}. Indicadores na tela (simulação educacional): ${painel}. Modo: ${state.mode}. Hub principal: Jaú-SP. Contexto extra: as Escolas Móveis do SENAI-SP são 78 laboratórios sobre carretas fabricadas no Centro de Treinamento SENAI de Lençóis Paulista-SP, cursos de 40 a 168 horas, turmas de até 16 alunos, levam formação onde não há unidade fixa. Responda em português do Brasil, tom profissional de operações, no MÁXIMO 3 frases curtas (será falado em voz alta). Sem markdown, sem listas, sem símbolos.`;
+  const r=await fetch('https://api.anthropic.com/v1/messages',{
+    method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:1000,
+      messages:[{role:'user',content:ctx+'\n\nPergunta do visitante: '+q}]})
+  });
+  const d=await r.json();
+  return d.content.filter(c=>c.type==='text').map(c=>c.text).join(' ').trim();
+}
+
+async function cmd(q){
+  if(!q)return;
+  msg('user',q);
+  document.getElementById('input').value='';
+  let resp=localIntent(q);
+  if(!resp){
+    msg('tower','<i>analisando...</i>');
+    try{ resp=await askClaude(q); }
+    catch(e){ resp='Sem conexão com o módulo de análise avançada no momento. Posso executar as simulações locais: bloqueio de rodovia, porto congestionado, pico de demanda, escolas móveis ou briefing da operação.'; }
+    document.querySelector('.feed').lastChild.remove();
+  }
+  msg('tower',resp);
+  speak(resp);
+}
+
+/* ================= ESCUTA CONTÍNUA COM PALAVRA DE ATIVAÇÃO ("TORRE") ================= */
+const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+const micBtn=document.getElementById('mic');
+const hearEl=document.getElementById('hear'), hearTxt=document.getElementById('hearTxt');
+let rec=null, alwaysOn=false, speaking=false, recActive=false;
+let armed=false, armedTimer=null;
+let audioCtx=null, analyser=null, meterOn=false;
+let errShown={};
+
+function showHear(html,ms){
+  hearTxt.innerHTML=html; hearEl.classList.add('show');
+  if(ms){clearTimeout(showHear.t);showHear.t=setTimeout(()=>{ if(alwaysOn)showHear('<i>aguardando "Torre"...</i>'); else hearEl.classList.remove('show'); },ms);}
+}
+function hideHear(){hearEl.classList.remove('show')}
+
+/* --- Medidor de captação: a onda mostra o nível REAL do microfone --- */
+async function ensureMicMeter(){
+  if(analyser)return true;
+  try{
+    const stream=await navigator.mediaDevices.getUserMedia({audio:true});
+    audioCtx=new (window.AudioContext||window.webkitAudioContext)();
+    const src=audioCtx.createMediaStreamSource(stream);
+    analyser=audioCtx.createAnalyser(); analyser.fftSize=256;
+    src.connect(analyser);
+    return true;
+  }catch(e){
+    msg('tower','<b>Microfone inacessível.</b> O navegador negou o acesso ('+e.name+'). Clique no cadeado ao lado do endereço, permita o microfone para este site e recarregue a página.');
+    return false;
+  }
+}
+const waveBars=[...document.querySelectorAll('#wave i')];
+function meterLoop(){
+  if(!meterOn)return;
+  if(analyser&&!speaking){
+    const data=new Uint8Array(analyser.frequencyBinCount);
+    analyser.getByteFrequencyData(data);
+    const lvl=Math.min(1,(data.reduce((a,b)=>a+b,0)/data.length)/70);
+    waveBars.forEach((b,i)=>{
+      const v=4+lvl*(20+8*Math.sin(Date.now()/90+i*1.4));
+      b.style.height=Math.max(4,v)+'px';
+    });
+  }
+  requestAnimationFrame(meterLoop);
+}
+
+function startRec(){ if(!rec||recActive||speaking)return; try{rec.start();recActive=true;}catch(e){} }
+function stopRec(){ if(!rec)return; try{rec.stop()}catch(e){} recActive=false; }
+
+/* --- Palavra de ativação tolerante: aceita variações que o reconhecedor confunde --- */
+function norm(t){return t.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'')}
+function findWake(raw){
+  const words=norm(raw).split(/\s+/);
+  const wakes=['torre','torres','tore','tori','torry','thor','torrei','torr'];
+  for(let i=0;i<words.length;i++){
+    const w=words[i].replace(/[^a-z]/g,'');
+    if(wakes.includes(w)||w.startsWith('torr')) return i;
+  }
+  return -1;
+}
+function handleVoice(raw){
+  const wi=findWake(raw);
+  if(wi>=0){
+    const after=raw.split(/\s+/).slice(wi+1).join(' ').replace(/^[\s,.:;!?]+/,'').trim();
+    if(after.length>2){ showHear('<b>&#10003; '+raw+'</b>',3500); cmd(after); }
+    else{
+      armed=true; clearTimeout(armedTimer);
+      armedTimer=setTimeout(()=>{armed=false;if(alwaysOn)showHear('<i>aguardando "Torre"...</i>')},9000);
+      showHear('<b>Torre ativada</b> — qual o comando?');
+      speak('Sim? Estou ouvindo.');
+    }
+  }else if(armed){
+    armed=false; clearTimeout(armedTimer);
+    showHear('<b>&#10003; '+raw+'</b>',3500);
+    cmd(raw.trim());
+  }else{
+    showHear('<i>ouvi: "'+raw+'" — sem "Torre", ignorado</i>',2600);
+  }
+}
+
+const ERR_MSG={
+  'network':'<b>Serviço de reconhecimento indisponível neste navegador.</b> Isso é comum no Edge (que depende do serviço de voz online do Windows). Recomendo abrir este arquivo no <b>Google Chrome</b>, onde o reconhecimento é muito mais confiável — ou ativar: Configurações do Windows &rarr; Privacidade &rarr; Fala &rarr; "Reconhecimento de fala online".',
+  'not-allowed':'<b>Permissão de microfone negada.</b> Clique no cadeado/ícone ao lado do endereço, permita o microfone e clique no botão novamente.',
+  'service-not-allowed':'<b>Serviço de voz bloqueado pelo navegador.</b> Verifique as permissões de microfone deste site e o serviço de fala do sistema.',
+  'audio-capture':'<b>Nenhum microfone encontrado.</b> Conecte/selecione um microfone no sistema e recarregue.',
+  'language-not-supported':'<b>Idioma não suportado pelo serviço de voz deste navegador.</b> Use o Google Chrome para o reconhecimento em português.'
+};
+
+if(SR){
+  rec=new SR();
+  rec.lang='pt-BR'; rec.continuous=true; rec.interimResults=true;
+  micBtn.onclick=async()=>{
+    if(!alwaysOn){
+      speechSynthesis.cancel();
+      const ok=await ensureMicMeter();
+      if(!ok)return;
+      alwaysOn=true; micBtn.classList.add('on');
+      meterOn=true; meterLoop();
+      startRec();
+      showHear('<i>aguardando "Torre"...</i>');
+      msg('tower','Escuta contínua <b>ativada</b>. A onda ao lado do microfone mostra a captação em tempo real. Diga <b>"Torre"</b> + comando — ex.: <i>"Torre, panorama das unidades móveis"</i>.');
+      if(/Edg\//.test(navigator.userAgent)){
+        msg('tower','<i>Dica: no Edge o reconhecimento de fala pode falhar (limitação do navegador). Se ao falar não aparecer transcrição no balão acima do microfone, use o Chrome para a demonstração.</i>');
+      }
+    }else{
+      alwaysOn=false; meterOn=false; armed=false;
+      micBtn.classList.remove('on'); hideHear();
+      waveBars.forEach(b=>b.style.height='6px');
+      stopRec();
+      msg('tower','Escuta contínua desativada.');
+    }
+  };
+  rec.onresult=e=>{
+    const r=e.results[e.results.length-1];
+    const t=r[0].transcript.trim();
+    if(r.isFinal){ handleVoice(t); }
+    else if(t){ showHear('<i>'+t+'&hellip;</i>'); }
+  };
+  rec.onend=()=>{ recActive=false; if(alwaysOn&&!speaking) setTimeout(startRec,250); };
+  rec.onerror=ev=>{
+    recActive=false;
+    if(ev.error==='no-speech'||ev.error==='aborted')return;
+    if(ERR_MSG[ev.error]&&!errShown[ev.error]){
+      errShown[ev.error]=true;
+      msg('tower',ERR_MSG[ev.error]);
+    }
+    if(ev.error==='not-allowed'||ev.error==='service-not-allowed'){
+      alwaysOn=false; meterOn=false; micBtn.classList.remove('on'); hideHear();
+    }
+  };
+}else{
+  micBtn.style.opacity=.35; micBtn.title='Reconhecimento de voz indisponível neste navegador — use o Google Chrome';
+}
+document.getElementById('input').addEventListener('keydown',e=>{
+  if(e.key==='Enter')cmd(e.target.value.trim());
+});
+
+/* ================= VIDA ================= */
+setInterval(()=>{
+  document.getElementById('clock').textContent=new Date().toLocaleTimeString('pt-BR');
+},1000);
+setInterval(()=>{
+  if(state.kpiSet==='log'){
+    KPI_LOG.transito.v+=Math.random()>.4?1:-1;
+    KPI_LOG.co2.v+=Math.random()*1.4;
+    if(state.mode==='normal'){ KPI_LOG.otif.v=97.2+(Math.random()-.5)*.3; }
+  }else{
+    KPI_MOB.horas.v+=Math.random()>.5?2:0;
+    if(Math.random()>.7)KPI_MOB.alunos.v+=Math.random()>.5?1:-1;
+  }
+  renderKpis();
+},2600);
+
+/* ================= INÍCIO ================= */
+renderKpis();
+alerta('','<b>Torre de Controle iniciada.</b> Monitorando 13 rotas e 6 CDs em tempo real.');
+msg('tower','Torre de Controle online. Clique no microfone <b>uma vez</b> para ativar a escuta contínua e comande por voz: <i>"Torre, situação da operação"</i> · <i>"Torre, panorama das unidades móveis"</i> · <i>"Torre, simula um bloqueio"</i>.');
+</script>
+</body>
+</html>
